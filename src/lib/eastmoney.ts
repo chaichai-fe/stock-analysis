@@ -132,7 +132,24 @@ export async function fetchDividend(securityCode: string, market: "sh" | "sz"): 
   return result;
 }
 
-/** 备用：F10 分红接口（部分东财页面使用） */
+/** F10 分红接口返回的 fhyx 单条（分红与询） */
+interface F10FhyxRow {
+  IMPL_PLAN_PROFILE?: string;
+  EX_DIVIDEND_DATE?: string | null;
+  NOTICE_DATE?: string;
+  [key: string]: unknown;
+}
+
+/** 从 "10派3.75元" 或 "10派1.563元" 解析每股派息（元），不分配不转增返回 NaN */
+function parseCashPerShareFromProfile(profile: string): number | null {
+  if (!profile || /不分配|不转增/i.test(profile)) return null;
+  const m = profile.match(/10[派送](\d+\.?\d*)\s*元?/);
+  if (!m) return null;
+  const num = Number(m[1]);
+  return Number.isNaN(num) || num <= 0 ? null : num / 10;
+}
+
+/** 备用：F10 分红接口（部分东财页面使用）；支持 fhyx 与 sgbh 两种返回结构 */
 export async function fetchDividendF10(secid: string, market: "sh" | "sz"): Promise<{ year: number; cashPerShare: number }[]> {
   const code = secid.split(".")[1] ?? "";
   const symbol = market === "sh" ? `SH${code}` : `SZ${code}`;
@@ -143,6 +160,24 @@ export async function fetchDividendF10(secid: string, market: "sh" | "sz"): Prom
   });
   if (!res.ok) return [];
   const json = await res.json();
+
+  // 优先解析 fhyx（分红与询）：IMPL_PLAN_PROFILE 如 "10派3.75元"，EX_DIVIDEND_DATE 除息日
+  const fhyx = (json?.fhyx ?? []) as F10FhyxRow[];
+  if (fhyx.length > 0) {
+    const result: { year: number; cashPerShare: number }[] = [];
+    for (const row of fhyx) {
+      const profile = row.IMPL_PLAN_PROFILE ?? "";
+      const cash = parseCashPerShareFromProfile(profile);
+      if (cash == null) continue;
+      const exDate = row.EX_DIVIDEND_DATE ?? row.NOTICE_DATE ?? "";
+      if (!exDate) continue;
+      const year = new Date(String(exDate).slice(0, 10)).getFullYear();
+      if (year > 1990 && year < 2100) result.push({ year, cashPerShare: cash });
+    }
+    if (result.length > 0) return result;
+  }
+
+  // 兼容旧结构 sgbh
   const list = json?.data?.sgbh?.data ?? json?.sgbh ?? [];
   const result: { year: number; cashPerShare: number }[] = [];
   for (const row of list) {
