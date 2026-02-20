@@ -29,8 +29,10 @@ export default function Home() {
   const [symbol, setSymbol] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<StockAnalysisResult | null>(null);
-  const [principal, setPrincipal] = useState(100000);
+  const [principalInput, setPrincipalInput] = useState("100000");
   const [reinvest, setReinvest] = useState(false);
+
+  const principal = principalInput === "" ? 0 : Number(principalInput) || 0;
 
   const simulation = useMemo(() => {
     if (!result || result.error || !result.yearlyDividends.length) return null;
@@ -225,8 +227,8 @@ export default function Home() {
                             type="number"
                             min={1}
                             step={1000}
-                            value={principal}
-                            onChange={(e) => setPrincipal(Number(e.target.value) || 0)}
+                            value={principalInput}
+                            onChange={(e) => setPrincipalInput(e.target.value)}
                             className="w-32 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100"
                           />
                         </label>
