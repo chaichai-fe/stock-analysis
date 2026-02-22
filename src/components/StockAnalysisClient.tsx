@@ -192,8 +192,8 @@ export function StockAnalysisClient() {
                                 {row.growthRatePercent.toFixed(2)}%
                               </td>
                               <td className="py-2">
-                                {row.totalDividend > 0
-                                  ? row.totalDividend.toFixed(2)
+                                {row.dividendYieldPercent > 0
+                                  ? `${row.dividendYieldPercent.toFixed(2)}%`
                                   : '-'}
                               </td>
                             </tr>
